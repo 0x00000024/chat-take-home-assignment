@@ -1,0 +1,113 @@
+import compression from 'compression';
+import cookieParser from 'cookie-parser';
+import cors from 'cors';
+import express from 'express';
+import { Server as SocketIo, Socket } from 'socket.io';
+import { createServer, Server } from 'http';
+import helmet from 'helmet';
+import hpp from 'hpp';
+import morgan from 'morgan';
+import swaggerJSDoc from 'swagger-jsdoc';
+import swaggerUi from 'swagger-ui-express';
+import { NODE_ENV, PORT, LOG_FORMAT, ORIGIN, CREDENTIALS } from '@config';
+import { Routes } from '@interfaces/routes.interface';
+import { errorMiddleware } from '@middlewares/error.middleware';
+import { logger, stream } from '@utils/logger';
+
+export class App {
+  public app: express.Application;
+  public server: Server;
+  public io: SocketIo;
+  public env: string;
+  public port: string | number;
+
+  constructor(routes: Routes[]) {
+    this.app = express();
+    this.server = createServer(this.app);
+
+    this.env = NODE_ENV || 'development';
+    this.port = PORT || 3000;
+
+    this.initializeMiddlewares();
+    this.initializeRoutes(routes);
+    this.initializeSwagger();
+    this.initializeErrorHandling();
+  }
+
+  public listen() {
+    const server = this.app.listen(this.port, () => {
+      logger.info(`=================================`);
+      logger.info(`======= ENV: ${this.env} =======`);
+      logger.info(`🚀 App listening on the port ${this.port}`);
+      logger.info(`=================================`);
+    });
+
+    const io: SocketIo = new SocketIo().listen(server, {
+      cors: {
+        origin: 'http://test.aws.eny.li:5173',
+        methods: ['GET', 'POST'],
+        allowedHeaders: ['my-custom-header'],
+        credentials: true,
+      },
+    });
+
+    io.on('connection', (socket: Socket) => {
+      socket.on('join room', (groupId: string, email: string) => {
+        console.log('a user joined room');
+        socket.join(groupId);
+        socket.to(groupId).emit('join room', email);
+      });
+      socket.on('group chat', (groupId: string, email: string, text: string) => {
+        socket.emit('group chat', email, text);
+        socket.to(groupId).emit('group chat', email, text);
+      });
+      socket.on('leave room', (groupId: string, email: string) => {
+        socket.to(groupId).emit('leave room', email);
+      });
+      socket.on('direct message', (socketId: string, text: string) => {
+        socket.to(socketId).emit('direct message', text);
+      });
+    });
+  }
+
+  public getServer() {
+    return this.app;
+  }
+
+  private initializeMiddlewares() {
+    this.app.use(morgan(LOG_FORMAT, { stream }));
+    this.app.use(cors({ origin: ORIGIN, credentials: CREDENTIALS }));
+    this.app.use(hpp());
+    this.app.use(helmet());
+    this.app.use(compression());
+    this.app.use(express.json());
+    this.app.use(express.urlencoded({ extended: true }));
+    this.app.use(cookieParser());
+  }
+
+  private initializeRoutes(routes: Routes[]) {
+    routes.forEach(route => {
+      this.app.use('/', route.router);
+    });
+  }
+
+  private initializeSwagger() {
+    const options = {
+      swaggerDefinition: {
+        info: {
+          title: 'REST API',
+          version: '1.0.0',
+          description: 'Example docs',
+        },
+      },
+      apis: ['swagger.yaml'],
+    };
+
+    const specs = swaggerJSDoc(options);
+    this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
+  }
+
+  private initializeErrorHandling() {
+    this.app.use(errorMiddleware);
+  }
+}
