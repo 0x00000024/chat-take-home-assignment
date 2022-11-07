@@ -1,0 +1,21 @@
+version: "3.7"
+
+services:
+  react:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: react
+    ports:
+      - "5173:5173"
+    restart: "unless-stopped"
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  data:
+    driver: local
