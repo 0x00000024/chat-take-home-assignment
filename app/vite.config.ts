@@ -7,11 +7,14 @@ import { defineConfig } from "vite";
 
 // Load environment variables for the target environment
 envars.config();
+console.log("process.env.API_ORIGIN,", process.env.API_ORIGIN);
 
 // The list of environment variables required by the app
 const defineVars = [
   "APP_ENV",
   "APP_NAME",
+  "APP_ORIGIN",
+  "API_ORIGIN",
   "APP_HOSTNAME",
   "GOOGLE_CLOUD_PROJECT",
   "FIREBASE_APP_ID",

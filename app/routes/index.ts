@@ -4,6 +4,7 @@
 import * as React from "react";
 
 export const Home = React.lazy(() => import("./Home.js"));
+export const Room = React.lazy(() => import("./Rooms.js"));
 export const Privacy = React.lazy(() => import("./Privacy.js"));
 export const Terms = React.lazy(() => import("./Terms.js"));
-export const Settings = React.lazy(() => import("./Settings.js"));
+// export const Settings = React.lazy(() => import("./Settings.js"));
